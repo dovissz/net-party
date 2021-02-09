@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetParty.Core", "NetParty.C
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetParty.Application", "NetParty.Application\NetParty.Application.csproj", "{1060310B-E203-45F6-AD6A-452ECD7A3254}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetParty.UnitTests", "..\tests\NetParty.UnitTests\NetParty.UnitTests.csproj", "{CEDB2D13-31E6-43CD-9023-B6E9EF3394AF}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{1060310B-E203-45F6-AD6A-452ECD7A3254}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1060310B-E203-45F6-AD6A-452ECD7A3254}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1060310B-E203-45F6-AD6A-452ECD7A3254}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CEDB2D13-31E6-43CD-9023-B6E9EF3394AF}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CEDB2D13-31E6-43CD-9023-B6E9EF3394AF}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CEDB2D13-31E6-43CD-9023-B6E9EF3394AF}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CEDB2D13-31E6-43CD-9023-B6E9EF3394AF}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

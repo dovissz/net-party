@@ -6,12 +6,20 @@ using System.Threading.Tasks;
 
 namespace NetParty.Core.APIs
 {
-    public class Response
+    /// <summary>
+    /// Response interface with properties for every response to have.
+    /// </summary>
+    public interface Response
     {
         #region Properties
 
-        public bool Success { get; set; }
-        public string Message { get; set; }
+        /// <summary>
+        /// Gets or sets the message.
+        /// </summary>
+        /// <value>
+        /// The message.
+        /// </value>
+        string Message { get; set; }
 
         #endregion Properties
     }

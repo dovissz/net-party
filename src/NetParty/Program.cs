@@ -1,5 +1,6 @@
 ﻿using Autofac;
 using CommandLine;
+using log4net;
 using NetParty.Application.APIs;
 using NetParty.Core;
 using NetParty.Core.APIs;
@@ -19,7 +20,8 @@ namespace NetParty
     {
         #region Properties
 
-        static ContainerBuilder _builder;
+        private static ContainerBuilder _builder;
+        private static ILog logger;
 
         #endregion Properties
 
@@ -29,18 +31,33 @@ namespace NetParty
         {
             try
             {
+                //Console.BackgroundColor = ConsoleColor.Green;
+                logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
+                
                 _builder = new ContainerBuilder();
-                _builder.Register(it => new SQLiteConnection(ConfigurationManager.ConnectionStrings["Default"].ConnectionString)).As<IDbConnection>();
-                _builder.Register(it => new RestClient(ConfigurationManager.AppSettings["PlaygroundServiceAddress"])).As<IRestClient>();
+                //_builder.Register(it => new SQLiteConnection(ConfigurationManager.ConnectionStrings["Default"].ConnectionString)).As<IDbConnection>();
+                //_builder.Register(it => new RestClient(ConfigurationManager.AppSettings["PlaygroundServiceAddress"])).As<IRestClient>();
+                
+                _builder.Register(it => LogManager.GetLogger(typeof(Object))).As<ILog>();
                 _builder.RegisterType<PlaygroundService>().As<IService>();
+
+                //ILog logger = _builder.Build().Resolve<ILog>();
+                //logger.Info("log4net OK");
+
                 var parser = new Parser()
                     .ParseArguments(args, new Type[] { typeof(ServerListArguments), typeof(Credentials) })
                     .WithParsed(ExecuteCmdRequest)
-                    .WithNotParsed(errs => Environment.Exit(0)); //ToDo: uzlogint ir press any key to continue
+                    .WithNotParsed(errs => throw new Exception("Failed to parse parameters."));
             }
             catch (Exception ex)
             {
-                //ToDo: log error
+                logger.Error("Program failed to execute.", ex);
+            }
+            finally
+            {
+                Console.WriteLine("Press any key to exit.");
+                Console.ReadKey();
+                Environment.Exit(0);
             }
         }
 
@@ -49,38 +66,29 @@ namespace NetParty
             var container = _builder.Build();
             if (obj is Credentials)
             {
-                try
-                {
-                    var scope = container.BeginLifetimeScope();
-                    var plugin = scope.Resolve<IService>();
-                    plugin.SaveCredentials(obj as Credentials);
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
-                }
-                //ToDo: exit and logging
+                var scope = container.BeginLifetimeScope();
+                var plugin = scope.Resolve<IService>();
+                plugin.SaveCredentials(obj as Credentials);
             }
             else if (obj is ServerListArguments)
             {
-                try
+                ServerListArguments serverArguments = obj as ServerListArguments;
+                using (var scope = container.BeginLifetimeScope())
                 {
-                    using (var scope = container.BeginLifetimeScope())
+                    var plugin = scope.Resolve<IService>();
+                    var token = serverArguments.Local ? "" : plugin.GetToken(null).Result.Token;
+                    //token.Wait();
+                    var servers = plugin.GetServers(serverArguments.DataLocation, token);
+                    if (string.IsNullOrEmpty(servers.Result.Message))
                     {
-                        var plugin = scope.Resolve<IService>();
-                        var token = plugin.GetToken(obj as Credentials);
-                        token.Wait();
-                        var servers = plugin.GetServers((obj as ServerListArguments).DataLocation, token.Result.Token);
-                        servers.Wait(); //ToDo: Wait?????
+                        logger.Info("===== Servers list =====");
+                        servers.Result.ForEach(it => logger.Info(it.Name));
+                        logger.Info(string.Format("Total servers count: {0}", servers.Result.Count));
                     }
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex.Message);
+                    else
+                        logger.Error(servers.Result.Message);
                 }
             }
-
         }
 
         #endregion Methods
