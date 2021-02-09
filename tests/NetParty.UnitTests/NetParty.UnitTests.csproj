@@ -94,7 +94,6 @@
   <ItemGroup>
     <Compile Include="Core\CredentialsUnitTest.cs" />
     <Compile Include="Core\ServerUnitTest.cs" />
-    <Compile Include="Core\ServiceUnitTest.cs" />
     <Compile Include="TestSuite.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>

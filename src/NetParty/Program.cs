@@ -4,7 +4,7 @@ using log4net;
 using NetParty.Application.APIs;
 using NetParty.Core;
 using NetParty.Core.APIs;
-using RestSharp;
+using NetParty.Core.Servers;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -16,6 +16,9 @@ using System.Threading.Tasks;
 
 namespace NetParty
 {
+    /// <summary>
+    /// Main class of the program
+    /// </summary>
     class Program
     {
         #region Properties
@@ -31,19 +34,10 @@ namespace NetParty
         {
             try
             {
-                //Console.BackgroundColor = ConsoleColor.Green;
                 logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-                
                 _builder = new ContainerBuilder();
-                //_builder.Register(it => new SQLiteConnection(ConfigurationManager.ConnectionStrings["Default"].ConnectionString)).As<IDbConnection>();
-                //_builder.Register(it => new RestClient(ConfigurationManager.AppSettings["PlaygroundServiceAddress"])).As<IRestClient>();
-                
                 _builder.Register(it => LogManager.GetLogger(typeof(Object))).As<ILog>();
                 _builder.RegisterType<PlaygroundService>().As<IService>();
-
-                //ILog logger = _builder.Build().Resolve<ILog>();
-                //logger.Info("log4net OK");
-
                 var parser = new Parser()
                     .ParseArguments(args, new Type[] { typeof(ServerListArguments), typeof(Credentials) })
                     .WithParsed(ExecuteCmdRequest)
@@ -76,8 +70,7 @@ namespace NetParty
                 using (var scope = container.BeginLifetimeScope())
                 {
                     var plugin = scope.Resolve<IService>();
-                    var token = serverArguments.Local ? "" : plugin.GetToken(null).Result.Token;
-                    //token.Wait();
+                    string token = ResolveToken(serverArguments, plugin);
                     var servers = plugin.GetServers(serverArguments.DataLocation, token);
                     if (string.IsNullOrEmpty(servers.Result.Message))
                     {
@@ -86,9 +79,23 @@ namespace NetParty
                         logger.Info(string.Format("Total servers count: {0}", servers.Result.Count));
                     }
                     else
-                        logger.Error(servers.Result.Message);
+                        throw new Exception(servers.Result.Message);
                 }
             }
+        }
+
+        private static string ResolveToken(ServerListArguments serverArguments, IService plugin)
+        {
+            string token = "";
+            if (serverArguments.DataLocation == ServerDataLocation.Database)
+            {
+                var tokenResult = plugin.GetToken(null).Result;
+                if (string.IsNullOrEmpty(tokenResult.Message))
+                    token = tokenResult.Token;
+                else
+                    throw new Exception(tokenResult.Message);
+            }
+            return token;
         }
 
         #endregion Methods

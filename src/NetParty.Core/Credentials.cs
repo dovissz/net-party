@@ -20,6 +20,15 @@ namespace NetParty.Core
         #region Properties
 
         /// <summary>
+        /// Gets or sets the identifier.
+        /// </summary>
+        /// <value>
+        /// The identifier.
+        /// </value>
+        [JsonIgnore]
+        public int Id => 1; //Only 1 login can be saved
+
+        /// <summary>
         /// Gets or sets the username.
         /// </summary>
         /// <value>
@@ -51,7 +60,7 @@ namespace NetParty.Core
         public async Task<Credentials> SaveToDatabase(string databaseConnectionString)
         {
             using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
-                await conn.ExecuteAsync(string.Format("INSERT OR REPLACE INTO Credentials (UserName, Password) values ('{0}','{1}')", Username, Password));
+                await conn.ExecuteAsync(string.Format("INSERT OR REPLACE INTO Credentials (Id, UserName, Password) values ('{0}','{1}','{2}')", Id, Username, Password));
             return this;
         }
 

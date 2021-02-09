@@ -121,7 +121,7 @@ namespace NetParty.Application.APIs
                 SQLiteConnection.CreateFile(databaseFileName);
             using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
             {
-                conn.Execute("CREATE TABLE IF NOT EXISTS \"Credentials\" ( \"username\"	TEXT, \"password\" TEXT, PRIMARY KEY(\"username\") )");
+                conn.Execute("CREATE TABLE IF NOT EXISTS \"Credentials\" ( \"Id\" INTEGER, \"username\" TEXT, \"password\" TEXT, PRIMARY KEY(\"Id\") )");
                 conn.Execute("CREATE TABLE IF NOT EXISTS \"Servers\"( \"Name\"  TEXT, \"Distance\" INTEGER, PRIMARY KEY(\"Name\") )");
             }
         }
