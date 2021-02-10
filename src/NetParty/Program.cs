@@ -4,6 +4,7 @@ using log4net;
 using NetParty.Application.APIs;
 using NetParty.Core;
 using NetParty.Core.APIs;
+using NetParty.Core.Database;
 using NetParty.Core.Servers;
 using System;
 using System.Collections.Generic;
@@ -34,10 +35,11 @@ namespace NetParty
         {
             try
             {
+                string databaseConnectionString = ConfigurationManager.ConnectionStrings["Default"].ConnectionString;
+                string databaseFilename = ConfigurationManager.AppSettings["DatabaseFileName"];
+                string linkToServices = ConfigurationManager.AppSettings["PlaygroundServiceAddress"];
                 logger = LogManager.GetLogger(System.Reflection.MethodBase.GetCurrentMethod().DeclaringType);
-                _builder = new ContainerBuilder();
-                _builder.Register(it => LogManager.GetLogger(typeof(Object))).As<ILog>();
-                _builder.RegisterType<PlaygroundService>().As<IService>();
+                _builder = InitializeBuilder(databaseConnectionString, databaseFilename, linkToServices);
                 var parser = new Parser()
                     .ParseArguments(args, new Type[] { typeof(ServerListArguments), typeof(Credentials) })
                     .WithParsed(ExecuteCmdRequest)
@@ -55,14 +57,31 @@ namespace NetParty
             }
         }
 
+        private static ContainerBuilder InitializeBuilder(string databaseConnectionString, string databaseFilename, string linkToServices)
+        {
+            ContainerBuilder builder = new ContainerBuilder();
+            builder.Register(it => LogManager.GetLogger(typeof(Object)))
+                .As<ILog>();
+            builder.RegisterType<SqliteDatabase>()
+                .As<IDatabase>()
+                .WithParameter("connectionString", databaseConnectionString)
+                .WithParameter("databaseFileName", databaseFilename);
+            builder.RegisterType<PlaygroundService>()
+                .WithParameter("linkToServices", linkToServices)
+                .As<IService>();
+            return builder;
+        }
+
         private static void ExecuteCmdRequest(object obj)
         {
             var container = _builder.Build();
             if (obj is Credentials)
             {
-                var scope = container.BeginLifetimeScope();
-                var plugin = scope.Resolve<IService>();
-                plugin.SaveCredentials(obj as Credentials);
+                using (var scope = container.BeginLifetimeScope())
+                {
+                    var plugin = scope.Resolve<IService>();
+                    plugin.SaveCredentials(obj as Credentials);
+                }
             }
             else if (obj is ServerListArguments)
             {
@@ -70,18 +89,23 @@ namespace NetParty
                 using (var scope = container.BeginLifetimeScope())
                 {
                     var plugin = scope.Resolve<IService>();
-                    string token = ResolveToken(serverArguments, plugin);
-                    var servers = plugin.GetServers(serverArguments.DataLocation, token);
-                    if (string.IsNullOrEmpty(servers.Result.Message))
-                    {
-                        logger.Info("===== Servers list =====");
-                        servers.Result.ForEach(it => logger.Info(it.Name));
-                        logger.Info(string.Format("Total servers count: {0}", servers.Result.Count));
-                    }
-                    else
-                        throw new Exception(servers.Result.Message);
+                    ExecuteServersRequest(serverArguments, plugin);
                 }
             }
+        }
+
+        private static void ExecuteServersRequest(ServerListArguments serverArguments, IService plugin)
+        {
+            string token = ResolveToken(serverArguments, plugin);
+            var servers = plugin.GetServers(serverArguments.DataLocation, token);
+            if (string.IsNullOrEmpty(servers.Result.Message))
+            {
+                logger.Info("===== Servers list =====");
+                servers.Result.ForEach(it => logger.Info(it.Name));
+                logger.Info(string.Format("Total servers count: {0}", servers.Result.Count));
+            }
+            else
+                throw new Exception(servers.Result.Message);
         }
 
         private static string ResolveToken(ServerListArguments serverArguments, IService plugin)

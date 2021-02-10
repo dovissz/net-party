@@ -1,13 +1,13 @@
 ﻿using CommandLine;
-using Dapper;
+using NetParty.Core.Database;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
 using System.Data;
 using System.Data.SQLite;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace NetParty.Core
 {
@@ -57,10 +57,9 @@ namespace NetParty.Core
         /// </summary>
         /// <param name="databaseConnectionString">The database connection string.</param>
         /// <returns></returns>
-        public async Task<Credentials> SaveToDatabase(string databaseConnectionString)
+        public async Task<Credentials> SaveToDatabase(IDatabase database)
         {
-            using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
-                await conn.ExecuteAsync(string.Format("INSERT OR REPLACE INTO Credentials (Id, UserName, Password) values ('{0}','{1}','{2}')", Id, Username, Password));
+            await database.ExecuteAsync(string.Format("INSERT OR REPLACE INTO Credentials (Id, UserName, Password) values ('{0}','{1}','{2}')", Id, Username, Password));
             return this;
         }
 

@@ -10,6 +10,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.IO;
+using NetParty.Core.Database;
+using Autofac;
+using log4net;
+using NetParty.Application.APIs;
+using NetParty.Core.APIs;
 
 namespace NetParty.UnitTests.Core
 {
@@ -19,6 +24,7 @@ namespace NetParty.UnitTests.Core
         #region Properties
 
         private string connectionString;
+        private string pathToDatabaseFile;
 
         #endregion Properties
 
@@ -27,7 +33,8 @@ namespace NetParty.UnitTests.Core
         [SetUp]
         public void Setup()
         {
-            connectionString = string.Format("Data Source={0};Version=3;", Path.Combine(binPath, "Party.db"));
+            pathToDatabaseFile = Path.Combine(binPath, "Party.db");
+            connectionString = string.Format("Data Source={0};Version=3;", pathToDatabaseFile);
         }
 
         [Test]
@@ -36,10 +43,11 @@ namespace NetParty.UnitTests.Core
             using (IDbConnection conn = new SQLiteConnection(connectionString))
                 Assert.AreEqual(0, conn.Query<Credentials>("select * from Credentials").Count());
 
+            var database = Substitute.For<SqliteDatabase>(connectionString, pathToDatabaseFile);
             var credentials = Substitute.For<Credentials>();
             credentials.Username = "testUser";
             credentials.Password = "testPass";
-            await credentials.SaveToDatabase(connectionString);
+            await credentials.SaveToDatabase(database);
 
             Credentials loadedCredentials = null;
             using (IDbConnection conn = new SQLiteConnection(connectionString))

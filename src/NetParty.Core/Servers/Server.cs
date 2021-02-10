@@ -1,12 +1,10 @@
-﻿using Dapper;
+﻿using NetParty.Core.Database;
 using Newtonsoft.Json;
+using System.Threading.Tasks;
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.SQLite;
 using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace NetParty.Core.Servers
 {
@@ -25,10 +23,9 @@ namespace NetParty.Core.Servers
 
         #region Methods
 
-        public async Task<Server> SaveToDatabase(string databaseConnectionString)
+        public async Task<Server> SaveToDatabase(IDatabase database)
         {
-            using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
-                await conn.ExecuteAsync(string.Format("INSERT OR REPLACE INTO Servers (Name, Distance) values ('{0}','{1}')", Name, Distance));
+            await database.ExecuteAsync(string.Format("INSERT OR REPLACE INTO Servers (Name, Distance) values ('{0}','{1}')", Name, Distance));
             return this;
         }
 

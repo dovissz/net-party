@@ -1,15 +1,11 @@
 ﻿using System;
-using System.Configuration;
-using System.Data;
-using System.Data.SQLite;
-using System.IO;
 using System.Linq;
 using System.Net;
 using System.Threading.Tasks;
-using Dapper;
 using log4net;
 using NetParty.Core;
 using NetParty.Core.APIs;
+using NetParty.Core.Database;
 using NetParty.Core.Servers;
 using Newtonsoft.Json;
 using RestSharp;
@@ -28,12 +24,13 @@ namespace NetParty.Application.APIs
         /// Initializes a new instance of the <see cref="PlaygroundService"/> class.
         /// </summary>
         /// <param name="logger">The logger.</param>
-        public PlaygroundService(ILog logger)
+        /// <param name="database">The database.</param>
+        /// <param name="linkToServices">Link to services.</param>
+        public PlaygroundService(ILog logger, IDatabase database, string linkToServices)
         {
             this._logger = logger;
-            databaseConnectionString = ConfigurationManager.ConnectionStrings["Default"].ConnectionString;
-            linkToServices = ConfigurationManager.AppSettings["PlaygroundServiceAddress"];
-            InitializeDatabase(ConfigurationManager.AppSettings["DatabaseFileName"]);
+            this._database = database;
+            this.linkToServices = linkToServices;
         }
 
         #endregion Constructors
@@ -41,8 +38,8 @@ namespace NetParty.Application.APIs
         #region Properties 
 
         private readonly ILog _logger;
-        readonly string databaseConnectionString;
-        readonly string linkToServices;
+        private readonly IDatabase _database;
+        private readonly string linkToServices;
 
         #endregion Properties
 
@@ -59,7 +56,7 @@ namespace NetParty.Application.APIs
             if (credentials == null)
                 throw new Exception("Credentials not provided.");
             _logger.Info("Saving credentials.");
-            var result = await credentials.SaveToDatabase(databaseConnectionString);
+            var result = await credentials.SaveToDatabase(_database);
             _logger.Info("Credentials were saved.");
             return result;
         }
@@ -73,16 +70,8 @@ namespace NetParty.Application.APIs
         async Task<GetServersResponse> IService.GetServers(ServerDataLocation dataLocation, string token)
         {
             if (dataLocation == ServerDataLocation.Local)
-            {
-                using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
-                {
-                    _logger.Info("Reading local servers list.");
-                    var servers = conn.Query<Server>("select * from Servers");
-                    var localResult = new GetServersResponse();
-                    localResult.AddRange(servers);
-                    return localResult;
-                }
-            }
+                return GetLocalServers();
+            
             _logger.Info("Downloading server list from server.");
             var client = new RestClient(linkToServices);
             var request = new RestRequest("servers", DataFormat.Json);
@@ -90,8 +79,17 @@ namespace NetParty.Application.APIs
 
             var requestResult = await client.ExecuteAsync<GetServersResponse>(request, Method.GET);
             var result = requestResult.StatusCode == HttpStatusCode.OK ? requestResult.Data : new GetServersResponse() { Message = requestResult.ErrorMessage };
-            result.ForEach(async server => await server.SaveToDatabase(databaseConnectionString));
+            result.ForEach(async server => await server.SaveToDatabase(_database));
             return result;
+        }
+
+        private GetServersResponse GetLocalServers()
+        {
+            _logger.Info("Reading local servers list.");
+            var servers = _database.QueryAsync<Server>("select * from Servers");
+            var localResult = new GetServersResponse();
+            localResult.AddRange(servers.Result);
+            return localResult;
         }
 
         /// <summary>
@@ -104,8 +102,7 @@ namespace NetParty.Application.APIs
             if (credentials == null)
             {
                 _logger.Info("Reading credentials from database.");
-                using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
-                    credentials = conn.Query<Credentials>("select * from Credentials").FirstOrDefault();
+                credentials = _database.QueryAsync<Credentials>("select * from Credentials").Result.FirstOrDefault();
             }
             _logger.Info("Requesting token from server.");
             var client = new RestClient(linkToServices);
@@ -113,17 +110,6 @@ namespace NetParty.Application.APIs
             request.AddJsonBody(JsonConvert.SerializeObject(credentials));
             var result = await client.PostAsync<AuthResponse>(request);
             return result;
-        }
-
-        private void InitializeDatabase(string databaseFileName)
-        {
-            if (!File.Exists(databaseFileName))
-                SQLiteConnection.CreateFile(databaseFileName);
-            using (IDbConnection conn = new SQLiteConnection(databaseConnectionString))
-            {
-                conn.Execute("CREATE TABLE IF NOT EXISTS \"Credentials\" ( \"Id\" INTEGER, \"username\" TEXT, \"password\" TEXT, PRIMARY KEY(\"Id\") )");
-                conn.Execute("CREATE TABLE IF NOT EXISTS \"Servers\"( \"Name\"  TEXT, \"Distance\" INTEGER, PRIMARY KEY(\"Name\") )");
-            }
         }
 
         #endregion Methods
